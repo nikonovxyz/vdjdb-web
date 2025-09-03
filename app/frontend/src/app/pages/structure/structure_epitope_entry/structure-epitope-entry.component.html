@@ -1,0 +1,22 @@
+<!--
+  Licensed under the Apache License, Version 2.0
+-->
+
+<div class="ui segments with-options" style="margin-top: 10px">
+    <h4 class="ui clearing segment header">
+        <div class="content">
+            {{ epitope.epitope }}
+        </div>
+        <div class="sub header">
+            {{ meta.species }}&nbsp;&nbsp;>&nbsp;&nbsp;{{ meta.gene }}&nbsp;&nbsp;>&nbsp;&nbsp;{{ meta.mhcclass }}&nbsp;&nbsp;>&nbsp;&nbsp;{{ meta.mhca }}
+        </div>
+        <i class="ui small close icon options-icon" (click)="discard()" style="right: 10px"></i>
+        <i class="ui small angle icon options-icon" [ngClass]="{'down': isHidden, 'up': !isHidden}" (click)="hide()" style="right: 40px"></i>
+    </h4>
+    <ng-container *ngIf="!isHidden">
+        <div class="ui clearing segment">
+            <structure-epitope-cluster *ngFor="let cluster of epitope.clusters; trackBy: trackClusterBy" [cluster]="cluster"
+                                       [isNormalized]="isNormalized"></structure-epitope-cluster>
+        </div>
+    </ng-container>
+</div>

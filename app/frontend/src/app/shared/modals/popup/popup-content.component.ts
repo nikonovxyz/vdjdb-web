@@ -54,7 +54,7 @@ export class PopupContentComponent implements AfterViewInit {
   public position: 'left' | 'right' | 'top' | 'bottom';
 
   @Input('display')
-  public display: 'paragraph' | 'list' | 'colored-text' | 'table' = 'paragraph';
+  public display: 'paragraph' | 'list' | 'colored-text' | 'image' | 'table' = 'paragraph';
 
   @Input('topShift')
   public set topShift(shift: number) {
@@ -133,6 +133,18 @@ export class PopupContentComponent implements AfterViewInit {
 
   public getFooterContent(): string {
     return this._footer;
+  }
+
+  public getImageSrc(): string {
+    if (this._content instanceof PopupContentTable) {
+      const table = this._content as PopupContentTable;
+      if (table.rows.length > 0 && table.rows[0].length > 0) {
+        return table.rows[0][0];
+      }
+    } else if (Array.isArray(this._content) && this._content.length > 0) {
+      return (this._content as string[])[0];
+    }
+    return '';
   }
 
   public positionElement(): void {

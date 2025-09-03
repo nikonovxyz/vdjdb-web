@@ -46,29 +46,31 @@ case class Motifs @Inject()(database: Database)(implicit tfp: TemporaryFileProvi
 
   def getMetadata: MotifsMetadata = metadata
 
-  def filter(filter: MotifsSearchTreeFilter): Option[MotifsSearchTreeFilterResult] = {
-    filter.entries.map(h => table.stringColumn(h.name).isEqualTo(h.value)).reduceRightOption((left, right) => left.and(right)).map { selection =>
-      table.where(selection).splitOn(table.stringColumn("antigen.epitope")).asTableList().asScala.map { epitopeTable =>
-        val epitopes = epitopeTable.stringColumn("antigen.epitope").asSet()
+  def filter(filter: MotifsSearchTreeFilter)(implicit ec: ExecutionContext): Future[Option[MotifsSearchTreeFilterResult]] = {
+    Future {
+      filter.entries.map(h => table.stringColumn(h.name).isEqualTo(h.value)).reduceRightOption((left, right) => left.and(right)).map { selection =>
+        table.where(selection).splitOn(table.stringColumn("antigen.epitope")).asTableList().asScala.map { epitopeTable =>
+          val epitopes = epitopeTable.stringColumn("antigen.epitope").asSet()
 
-        assert(epitopes.size == 1)
+          assert(epitopes.size == 1)
 
-        val hash = CommonUtils.md5(metadataLevels.map(level => {
-          val meta = epitopeTable.stringColumn(level).asSet.asScala
+          val hash = CommonUtils.md5(metadataLevels.map(level => {
+            val meta = epitopeTable.stringColumn(level).asSet.asScala
 
-          assert(meta.nonEmpty)
+            assert(meta.nonEmpty)
 
-          meta.head
-        }).reduce(_ + _))
+            meta.head
+          }).reduce(_ + _))
 
-        MotifEpitope(
-          epitopes.asScala.toSeq.head,
-          hash,
-          epitopeTable.splitOn(table.stringColumn("cid")).asTableList().asScala.map(MotifCluster.fromTable)
-        )
+          MotifEpitope(
+            epitopes.asScala.toSeq.head,
+            hash,
+            epitopeTable.splitOn(table.stringColumn("cid")).asTableList().asScala.map(MotifCluster.fromTable)
+          )
+        }
+      }.map { epitopes =>
+        MotifsSearchTreeFilterResult(epitopes)
       }
-    }.map { epitopes =>
-      MotifsSearchTreeFilterResult(epitopes)
     }
   }
 

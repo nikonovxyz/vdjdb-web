@@ -1,0 +1,14 @@
+<!--
+  Licensed under the Apache License, Version 2.0
+-->
+
+<ng-container *ngIf="epitopes && epitopes.length !== 0; else empty">
+    <ng-container *ngFor="let epitope of epitopes; trackBy:trackEpitopeBy">
+        <structure-epitope-entry [epitope]="epitope" [isNormalized]="options.isNormalized" (onDiscard)="onEpitopeDiscard($event)"></structure-epitope-entry>
+    </ng-container>
+</ng-container>
+<ng-template #empty>
+    <h2 class="ui center aligned icon header" style="margin-top: 10px"><i class="search icon"></i> Nothing selected
+        <div class="sub header">Browse structures using the tree on the left side of the page</div>
+    </h2>
+</ng-template>

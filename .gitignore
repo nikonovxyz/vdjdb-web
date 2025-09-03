@@ -7,6 +7,21 @@
 /app/frontend/npm-debug.log
 /app/frontend/package-lock.json
 
+# Developer scripts
+/scripts
+
+# Developer instruments
+qodana.yaml
+qodana.sarif.json
+
+# MacOs
+.DS_Store
+Thumbs.db
+
+# Test
+/database/test*
+/conf/application.local.conf
+
 # Front end build artifacts
 /public/bundles
 

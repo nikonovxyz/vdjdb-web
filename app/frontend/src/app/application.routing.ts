@@ -33,6 +33,7 @@ const routes: Routes = [
     { path: 'self-antigen', component: SelfAntigenActionComponent },
     { path: 'annotations', loadChildren: 'pages/annotations/annotations.module#AnnotationsPageModule' },
     { path: 'motif', loadChildren: 'pages/motif/motif.module#MotifPageModule' },
+    { path: 'structure', loadChildren: 'pages/structure/structure.module#StructurePageModule' },
     { path: 'refsearch', loadChildren: 'pages/refsearch/refsearch.module#RefSearchPageModule' },
     { path: 'about', loadChildren: 'pages/about/about.module#AboutPageModule' },
     { path: 'links', loadChildren: 'pages/links/links.module#LinksPageModule' },

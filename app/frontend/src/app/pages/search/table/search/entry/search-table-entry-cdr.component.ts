@@ -1,19 +1,3 @@
-/*
- *     Copyright 2017-2019 Bagaev Dmitry
- *
- *     Licensed under the Apache License, Version 2.0 (the "License");
- *     you may not use this file except in compliance with the License.
- *     You may obtain a copy of the License at
- *
- *         http://www.apache.org/licenses/LICENSE-2.0
- *
- *     Unless required by applicable law or agreed to in writing, software
- *     distributed under the License is distributed on an "AS IS" BASIS,
- *     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *     See the License for the specific language governing permissions and
- *     limitations under the License.
- */
-
 import { ChangeDetectionStrategy, Component, ComponentFactoryResolver, ViewContainerRef } from '@angular/core';
 import { TableColumn } from 'shared/table/column/table-column';
 import { TableEntry } from 'shared/table/entry/table-entry';
@@ -23,14 +7,45 @@ import ColorizedPatternRegion = Utils.SequencePattern.ColorizedPatternRegion;
 
 @Component({
   selector:        'td[search-table-entry-cdr]',
-  template:        `<span *ngFor="let region of regions" [style.color]="region.color">{{ region.part }}</span>`,
+  template:        `<a [href]="link" class="motif-link"><span *ngFor="let region of regions" [style.color]="region.color">{{ region.part }}</span></a>`,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SearchTableEntryCdrComponent extends TableEntry {
+  public link: string = '#';
   public regions: ColorizedPatternRegion[] = [];
 
-  public create(entry: string, _column: TableColumn, _columns: TableColumn[], row: SearchTableRow,
+  public create(entry: string, _column: TableColumn, columns: TableColumn[], row: SearchTableRow,
                 _hostViewContainer: ViewContainerRef, _resolver: ComponentFactoryResolver): void {
     this.regions = Utils.SequencePattern.colorizePattern(entry, row.metadata.cdr3vEnd, row.metadata.cdr3jStart);
+
+    this.link = this.generateMotifLink(row, columns);
+  }
+
+  private getCellValue(row: SearchTableRow, columns: TableColumn[], columnName: string): string | undefined {
+    const columnIndex = columns.findIndex((c) => c.name === columnName);
+    if (columnIndex === -1) {
+      return undefined;
+    }
+    return row.getEntries()[columnIndex];
+  }
+
+  private generateMotifLink(row: SearchTableRow, columns: TableColumn[]): string {
+    const species = this.getCellValue(row, columns, 'species');
+    const tcrChain = this.getCellValue(row, columns, 'gene');
+    const mhcClass = this.getCellValue(row, columns, 'mhc.class');
+    const gene = this.getCellValue(row, columns, 'mhc.a').replace(/:.+/, '');
+    const epitopeSeq = this.getCellValue(row, columns, 'antigen.epitope');
+
+    if (!species || !tcrChain || !mhcClass || !gene || !epitopeSeq) {
+      return '#';
+    }
+
+    const params = new URLSearchParams();
+    params.set('species', species);
+    params.set('tcr_chain', tcrChain);
+    params.set('mhc_class', mhcClass);
+    params.set('gene', gene);
+    params.set('epitope_seq', epitopeSeq);
+    return `/motif?${params.toString()}`;
   }
 }

@@ -1,0 +1,39 @@
+/* Стиль заголовка кластера и панели действий */
+.ui.left.floated.header .content.with-options {
+    display: inline-block;
+    vertical-align: middle;
+}
+.ui.right.floated.header .content.with-options {
+    display: inline-block;
+}
+
+/* Кнопка экспорта */
+.download-members-icon {
+    margin-left: 6px !important;
+}
+
+/* Сегмент с изображением структуры */
+.ui.segment {
+    padding: 8px !important;
+}
+
+/* Картинка структуры */
+.ui.segment img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+    image-rendering: auto;
+    border-radius: 4px;
+    box-shadow: 0 1px 2px rgba(0,0,0,.08);
+}
+
+/* Адаптив: немного уменьшаем шрифты на узких экранах */
+@media (max-width: 768px) {
+    .ui.left.floated.header {
+        font-size: 0.95rem;
+    }
+    .ui.right.floated.header .button {
+        font-size: 0.9rem !important;
+    }
+}

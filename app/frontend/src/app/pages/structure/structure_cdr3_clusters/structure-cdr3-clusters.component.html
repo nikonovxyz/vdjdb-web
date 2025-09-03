@@ -1,0 +1,43 @@
+<!--
+  Licensed under the Apache License, Version 2.0
+-->
+
+<ng-container *ngIf="clusters && clusters.clusters && clusters.clustersNorm; else notLoaded">
+    <div class="ui segments" style="margin-top: 10px">
+        <ng-container *ngIf="clusters.clusters.length !== 0; else empty">
+            <div class="ui segment header">
+                <div class="content">Structures found for {{ clusters.options.cdr3 }}</div>
+            </div>
+            <div class="ui clearing segment">
+                Top
+                <div class="ui mini input selection dropdown" dropdown [content]="content" style="width: 50px; min-width: 50px">
+                    <div class="text">{{ top }}</div>
+                    <i class="dropdown icon"></i>
+                    <div class="menu fade element slow padded" tabindex="-1" #content>
+                        <div class="item" (click)="setTop(5)">5</div>
+                        <div class="item" (click)="setTop(10)">10</div>
+                        <div class="item" (click)="setTop(15)">15</div>
+                    </div>
+                </div>
+                results are shown
+                <div class="ui mini basic blue right floated button" (click)="toggleHitboxVisibility()">Toggle CDR3 hitbox</div>
+            </div>
+            <div class="ui clearing segment" *ngFor="let entry of getClustersEntries()">
+                <h5 class="ui header">
+                    <div class="content">Informativeness: {{ entry.info.toFixed(3) }}&nbsp;&nbsp;&nbsp;{{ getCDR3SubstringHelpContent(entry) }}</div>
+                </h5>
+                <structure-epitope-cluster [cluster]="entry.cluster" [hit]="getCDR3Hitbox(entry)" [isNormalized]="options.isNormalized"></structure-epitope-cluster>
+            </div>
+        </ng-container>
+        <ng-template #empty>
+            <div class="ui segment">
+                <h2 class="ui center aligned icon header" style="margin-top: 25px">No clusters found for {{ clusters.options.cdr3 }}</h2>
+            </div>
+        </ng-template>
+    </div>
+</ng-container>
+<ng-template #notLoaded>
+    <h2 class="ui center aligned icon header" style="margin-top: 10px"><i class="search icon"></i> Empty search input
+        <div class="sub header">To find clusters associated with specific CDR3 you can use the filter input on the left side of the page</div>
+    </h2>
+</ng-template>

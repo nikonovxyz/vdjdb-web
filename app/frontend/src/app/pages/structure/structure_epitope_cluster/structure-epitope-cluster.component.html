@@ -1,0 +1,32 @@
+<!--
+  Licensed under the Apache License, Version 2.0
+-->
+
+<h5 class="ui left floated header" style="margin-top: 10px; margin-bottom: 10px" #HeaderContent>
+    <div class="content with-options">
+        <span>ID: {{ cluster.clusterId }}</span>&nbsp;&nbsp;&nbsp;
+        <span>Cluster size: {{ cluster.size }}</span>&nbsp;&nbsp;&nbsp;
+        <span>CDR3 length: {{ cluster.length }}</span>&nbsp;&nbsp;&nbsp;
+        <span>{{ cluster.vsegm }}&nbsp;/&nbsp;{{ cluster.jsegm }}</span>
+        <div class="sub header">
+            <span>Species: {{ cluster.meta.species }}</span>&nbsp;&nbsp;&nbsp;
+            <span>Gene: {{ cluster.meta.gene }}</span>&nbsp;&nbsp;&nbsp;
+            <span>MHC.class: {{ cluster.meta.mhcclass }}</span>&nbsp;&nbsp;&nbsp;
+            <span>MHC.A: {{ cluster.meta.mhca }}</span>&nbsp;&nbsp;&nbsp;
+            <span>MHC.B: {{ cluster.meta.mhcb }}</span>&nbsp;&nbsp;&nbsp;
+            <span>Antigen.Gene: {{ cluster.meta.antigenGene }}</span>&nbsp;&nbsp;&nbsp;
+            <span>Antigen.Species: {{ cluster.meta.antigenSpecies }}</span>&nbsp;&nbsp;&nbsp;
+        </div>
+    </div>
+</h5>
+<div class="ui right floated header">
+    <div class="content with-options">
+        <button class="mini ui basic button download-members-icon" (click)="exportCID()">
+            <i class="icon download"></i>
+            Export
+        </button>
+    </div>
+</div>
+<div class="ui segment" style="clear: both;">
+    <img *ngIf="cluster.imageUrl" [src]="cluster.imageUrl" style="max-width: 100%; max-height: 250px; display: block; margin: auto;" />
+</div>
