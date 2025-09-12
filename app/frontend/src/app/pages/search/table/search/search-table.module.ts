@@ -23,10 +23,10 @@ import { FiltersModule } from 'shared/filters/filters.module';
 import { ModalsModule } from 'shared/modals/modals.module';
 import { TableModule } from 'shared/table/table.module';
 import { SearchTableEntryCdrComponent } from './entry/search-table-entry-cdr.component';
+import { SearchTableEntryContactComponent } from './entry/search-table-entry-contact.component';
 import { SearchTableEntryGeneComponent } from './entry/search-table-entry-gene.component';
 import { SearchTableEntryMetaComponent } from './entry/search-table-entry-meta.component';
 import { SearchTableEntryUrlComponent } from './entry/search-table-entry-url.component';
-import { SearchTableEntryImageComponent } from './entry/search-table-entry-image.component';
 import { SearchTableComponent } from './search-table.component';
 import { SearchTableService } from './search-table.service';
 
@@ -35,19 +35,19 @@ import { SearchTableService } from './search-table.service';
   declarations:    [ SearchTableComponent,
     SearchTableEntryMetaComponent,
     SearchTableEntryUrlComponent,
-    SearchTableEntryImageComponent,
     SearchTableEntryGeneComponent,
     SearchTableEntryCdrComponent,
     SearchTableEntrySegmentComponent,
-    SearchTableEntryMHCComponent ],
+    SearchTableEntryMHCComponent,
+    SearchTableEntryContactComponent ],
   exports:         [ SearchTableComponent ],
   entryComponents: [ SearchTableEntryMetaComponent,
     SearchTableEntryUrlComponent,
-    SearchTableEntryImageComponent,
     SearchTableEntryGeneComponent,
     SearchTableEntryCdrComponent,
     SearchTableEntrySegmentComponent,
-    SearchTableEntryMHCComponent ],
+    SearchTableEntryMHCComponent,
+    SearchTableEntryContactComponent ],
   providers:       [ SearchTableService ]
 })
 export class SearchTableModule {

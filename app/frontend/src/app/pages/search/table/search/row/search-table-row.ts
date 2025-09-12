@@ -21,8 +21,8 @@ import { TableColumn } from 'shared/table/column/table-column';
 import { TableEntry } from 'shared/table/entry/table-entry';
 import { TableRow } from 'shared/table/row/table-row';
 import { SearchTableEntryCdrComponent } from '../entry/search-table-entry-cdr.component';
+import { SearchTableEntryContactComponent } from '../entry/search-table-entry-contact.component';
 import { SearchTableEntryGeneComponent } from '../entry/search-table-entry-gene.component';
-import { SearchTableEntryImageComponent } from '../entry/search-table-entry-image.component';
 import { SearchTableEntryMetaComponent } from '../entry/search-table-entry-meta.component';
 import { SearchTableEntryUrlComponent } from '../entry/search-table-entry-url.component';
 
@@ -70,14 +70,14 @@ export class SearchTableRow extends TableRow {
       return resolver.resolveComponentFactory(SearchTableEntryCdrComponent);
     } else if (column.name === 'reference.id') {
       return resolver.resolveComponentFactory(SearchTableEntryUrlComponent);
+    } else if (column.name === 'contacts') {
+      return resolver.resolveComponentFactory(SearchTableEntryContactComponent);
     } else if (column.name === 'method' || column.name === 'meta' || column.name === 'cdr3fix') {
       return resolver.resolveComponentFactory(SearchTableEntryMetaComponent);
     } else if (column.name === 'v.segm' || column.name === 'j.segm') {
       return resolver.resolveComponentFactory(SearchTableEntrySegmentComponent);
     } else if (column.name === 'mhc.a' || column.name === 'mhc.b') {
       return resolver.resolveComponentFactory(SearchTableEntryMHCComponent);
-    } else if (column.name === 'contacts') {
-      return resolver.resolveComponentFactory(SearchTableEntryImageComponent);
     }
     return undefined;
   }

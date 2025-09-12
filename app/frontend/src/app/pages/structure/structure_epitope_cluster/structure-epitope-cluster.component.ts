@@ -1,48 +1,35 @@
 /*
- *     Licensed under the Apache License, Version 2.0
+ *     Copyright 2017-2019 Bagaev Dmitry
+ *
+ *     Licensed under the Apache License, Version 2.0 (the "License");
+ *     you may not use this file except in compliance with the License.
+ *     You may obtain a copy of the License at
+ *
+ *         http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *     Unless required by applicable law or agreed to in writing, software
+ *     distributed under the License is distributed on an "AS IS" BASIS,
+ *     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *     See the License for the specific language governing permissions and
+ *     limitations under the License.
  */
 
 import { Component, Input } from '@angular/core';
 import { IStructureCluster } from 'pages/structure/structure';
 import { StructureService } from 'pages/structure/structure.service';
 
-/**
- * Displays a single epitope cluster for the structure browser.  The
- * component shows cluster metadata (ID, size, gene segments, etc.) and a
- * preview image of the 3D structure.  Users can export cluster members via
- * the export button.
- */
 @Component({
     selector: 'structure-epitope-cluster',
     templateUrl: './structure-epitope-cluster.component.html',
     styleUrls: ['./structure-epitope-cluster.component.css']
 })
 export class StructureEpitopeClusterComponent {
-    /**
-     * Cluster object to display.  Each cluster should have an imageUrl
-     * property assigned by the StructureService when the data is loaded.
-     */
     @Input('cluster') public cluster: IStructureCluster;
-
-    /**
-     * Optional CDR3 hitbox string for highlighting search regions.  It is
-     * unused in the structure view but kept for compatibility with the
-     * motif CDR3 search component.
-     */
     @Input('hit') public hit: string;
-
-    /**
-     * Indicates whether cluster statistics should be normalised.  It is
-     * unused in the structure view but kept for compatibility.
-     */
     @Input('isNormalized') public isNormalized: boolean;
 
     constructor(private structureService: StructureService) {}
 
-    /**
-     * Request export of the current cluster members.  Delegates to the
-     * StructureService which internally uses the motifs API.
-     */
     public exportCID(): void {
         this.structureService.members(this.cluster.clusterId);
     }
