@@ -41,6 +41,17 @@ POST        /api/motifs/cdr3                            backend.controllers.Moti
 + nocsrf
 POST        /api/motifs/members                         backend.controllers.MotifsAPI.members
 
+<<<<<<< Updated upstream
+=======
+# Structures API
+GET         /api/structures/metadata                        backend.controllers.StructuresAPI.getMetadata
++ nocsrf
+POST        /api/structures/filter                          backend.controllers.StructuresAPI.filter
+
+# Streams <db>/structure/cd[4|8]/<id>.png
+GET   /structure-files/*path   backend.controllers.ImageController.structure(path: String)
+
+>>>>>>> Stashed changes
 # Authorization API
 GET         /authorization/elogin                       backend.controllers.Authorization.login
 POST        /authorization/elogin                       backend.controllers.Authorization.onLogin
