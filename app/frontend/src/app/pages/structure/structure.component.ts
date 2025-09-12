@@ -15,39 +15,35 @@
  */
 
 import { ChangeDetectionStrategy, Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
-import { MotifSearchState } from 'pages/motif/motif.service';
+import { ActivatedRoute } from '@angular/router';
 import {
   IStructureCDR3SearchResult,
   IStructureCDR3SearchResultOptions,
   IStructureEpitope,
   IStructureEpitopeViewOptions,
-  IStructureMetadata,
-  IStructureMetadataTreeLevelValue
+  IStructuresMetadata,
+  IStructuresMetadataTreeLevelValue
 } from 'pages/structure/structure';
+import { StructureSearchState } from 'pages/structure/structure.service';
 import { StructureService } from 'pages/structure/structure.service';
 import { fromEvent, Observable, Subscription, timer } from 'rxjs';
-import { debounce } from 'rxjs/operators';
+import {debounce, take} from 'rxjs/operators';
 import { ContentWrapperService } from '../../content-wrapper.service';
 
-/**
- * Top level component for the structure browser.  It orchestrates loading
- * metadata, handling scroll and resize events, and toggles between the
- * epitope view and CDR3 search view depending on the search state.
- */
 @Component({
   selector:        'structure',
   templateUrl:     './structure.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class StructurePageComponent implements OnInit, OnDestroy {
-  private static readonly structurePageScrollEventDebounceTimeout: number = 10;
-  private static readonly structurePageResizeEventDebounceTimeout: number = 200;
+  private static readonly pageScrollEventDebounceTimeout: number = 10;
+  private static readonly pageResizeEventDebounceTimeout: number = 200;
 
   private onScrollObservable: Subscription;
   private onResizeObservable: Subscription;
 
-  public readonly metadata: Observable<IStructureMetadata>;
-  public readonly selected: Observable<IStructureMetadataTreeLevelValue[]>;
+  public readonly metadata: Observable<IStructuresMetadata>;
+  public readonly selected: Observable<IStructuresMetadataTreeLevelValue[]>;
   public readonly epitopes: Observable<IStructureEpitope[]>;
   public readonly options: Observable<IStructureEpitopeViewOptions>;
   public readonly clusters: Observable<IStructureCDR3SearchResult>;
@@ -56,7 +52,7 @@ export class StructurePageComponent implements OnInit, OnDestroy {
   @ViewChild('EpitopesContainer')
   public epitopesContainer: ElementRef;
 
-  constructor(private structureService: StructureService, private contentWrapper: ContentWrapperService) {
+  constructor(private structureService: StructureService, private contentWrapper: ContentWrapperService, private route: ActivatedRoute) {
     this.metadata = structureService.getMetadata();
     this.selected = structureService.getSelected();
     this.epitopes = structureService.getEpitopes();
@@ -65,55 +61,55 @@ export class StructurePageComponent implements OnInit, OnDestroy {
     this.cdr3SearchOptions = structureService.getCDR3SearchOptions();
   }
 
-  /**
-   * Initialise the component by loading metadata and subscribing to scroll
-   * and resize events.  When the component is created the application
-   * content wrapper is instructed to block page scrolling.
-   */
   public ngOnInit(): void {
     this.contentWrapper.blockScrolling();
-    this.structureService.load();
+
+    this.route.queryParamMap.pipe(take(1)).subscribe((params) => {
+      const species = params.get('species');
+      const tcrChain = params.get('tcr_chain');
+      const gene = params.get('gene');
+      const mhcClass = params.get('mhc_class');
+      const epitopeSeq = params.get('epitope_seq');
+
+      if (species && tcrChain && mhcClass && gene && epitopeSeq) {
+        this.structureService.filterByUrl({ species, tcrChain, mhcClass, gene, epitopeSeq });
+
+      } else {
+        const cdr3Query = params.get('query');
+        if (cdr3Query) {
+          this.structureService.searchCDR3ByUrl(cdr3Query);
+        } else {
+          this.structureService.load();
+        }
+      }
+    });
+
     this.onScrollObservable = fromEvent(this.epitopesContainer.nativeElement, 'scroll')
-        .pipe(debounce(() => timer(StructurePageComponent.structurePageScrollEventDebounceTimeout))).subscribe(() => {
+        .pipe(debounce(() => timer(StructurePageComponent.pageScrollEventDebounceTimeout))).subscribe(() => {
           this.structureService.fireScrollUpdateEvent();
         });
 
     this.onResizeObservable = fromEvent(window, 'resize')
-        .pipe(debounce(() => timer(StructurePageComponent.structurePageResizeEventDebounceTimeout))).subscribe(() => {
+        .pipe(debounce(() => timer(StructurePageComponent.pageResizeEventDebounceTimeout))).subscribe(() => {
           this.structureService.fireResizeUpdateEvent();
         });
   }
 
-  /**
-   * Observable determining whether epitopes are being loaded.  Used by the
-   * template to show a loading spinner.
-   */
   public isEpitopesLoading(): Observable<boolean> {
     return this.structureService.isLoading();
   }
 
-  /**
-   * Clean up subscriptions and restore page scrolling on destroy.
-   */
   public ngOnDestroy(): void {
     this.contentWrapper.unblockScrolling();
     this.onScrollObservable.unsubscribe();
     this.onResizeObservable.unsubscribe();
   }
 
-  /**
-   * Return true if the search state is the tree state, indicating that
-   * epitope results should be shown.
-   */
   public isStateSearchTree(): boolean {
-    return this.structureService.getSearchState() === MotifSearchState.SEARCH_TREE;
+    return this.structureService.getSearchState() === StructureSearchState.SEARCH_TREE;
   }
 
-  /**
-   * Return true if the search state is the CDR3 state, indicating that
-   * CDR3 search results should be shown.
-   */
   public isStateSearchCDR3(): boolean {
-    return this.structureService.getSearchState() === MotifSearchState.SEARCH_CDR3;
+    return this.structureService.getSearchState() === StructureSearchState.SEARCH_CDR3;
   }
 }

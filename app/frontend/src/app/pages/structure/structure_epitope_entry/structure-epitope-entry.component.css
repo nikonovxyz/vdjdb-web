@@ -1,75 +1,36 @@
-/* Общая компоновка карточки эпитопа */
-.ui.segments.with-options {
-    margin-top: 10px;
-}
+/*
+ *     Copyright 2017-2019 Bagaev Dmitry
+ *
+ *     Licensed under the Apache License, Version 2.0 (the "License");
+ *     you may not use this file except in compliance with the License.
+ *     You may obtain a copy of the License at
+ *
+ *         http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *     Unless required by applicable law or agreed to in writing, software
+ *     distributed under the License is distributed on an "AS IS" BASIS,
+ *     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *     See the License for the specific language governing permissions and
+ *     limitations under the License.
+ */
 
-/* Заголовок эпитопа с иконками действий */
-.ui.segments.with-options > h4.ui.segment.header {
-    position: relative;
-    padding-right: 70px; /* место под две иконки справа */
-}
-
-/* Текст заголовка/подзаголовка */
-.ui.segments.with-options > h4.ui.segment.header .content {
-    font-weight: 600;
-}
-.ui.segments.with-options > h4.ui.segment.header .sub.header {
-    margin-top: 4px;
-    color: rgba(0,0,0,.6);
-    font-weight: 400;
-    line-height: 1.2;
-}
-
-/* Универсальный контейнер для выравнивания опций справа, если нужен */
-.with-options {
-    position: relative;
-}
-
-/* Иконки «скрыть/показать» и «удалить эпитоп» в правом верхнем углу */
 .options-icon {
-    position: absolute !important;
-    top: 50%;
-    transform: translateY(-50%);
+    top: 15px;
+    position: absolute;
+    float: right;
+    opacity: 0.2 !important;
+    font-size: 1.25em !important;
     cursor: pointer;
-    opacity: 0.85;
-    transition: opacity .15s ease, transform .15s ease;
-    z-index: 2;
+    -webkit-transition: opacity 0.2s ease-in-out !important;
+    -moz-transition: opacity 0.2s ease-in-out !important;
+    -ms-transition: opacity 0.2s ease-in-out !important;
+    transition: opacity 0.2s ease-in-out !important;
 }
 
-/* Положение конкретных иконок (должно совпадать с inline-стилями в шаблоне) */
-.options-icon[style*="right: 10px"] { /* close icon */
-    right: 10px !important;
-}
-.options-icon[style*="right: 40px"] { /* angle icon */
-    right: 40px !important;
+.ui.segments.with-options > .ui.header > .options-icon {
+    opacity: 0.2 !important;
 }
 
-/* Ховер-эффекты для иконок */
-.options-icon:hover {
-    opacity: 1;
-    transform: translateY(-50%) scale(1.05);
-}
-
-/* Контейнер списка кластеров */
-.ui.segments.with-options .ui.clearing.segment {
-    padding-top: 10px;
-    padding-bottom: 10px;
-}
-
-/* Немного воздуха между соседними кластерами */
-structure-epitope-cluster + structure-epitope-cluster {
-    margin-top: 12px;
-}
-
-/* Адаптивность: на узких экранах уменьшим отступы и размер шрифта */
-@media (max-width: 768px) {
-    .ui.segments.with-options > h4.ui.segment.header {
-        padding-right: 60px;
-    }
-    .ui.segments.with-options > h4.ui.segment.header .content {
-        font-size: 1.02rem;
-    }
-    .ui.segments.with-options > h4.ui.segment.header .sub.header {
-        font-size: .9rem;
-    }
+.ui.segments.with-options > .ui.header:hover > .options-icon {
+    opacity: 0.8 !important;
 }

@@ -15,11 +15,10 @@
  */
 
 import { ChangeDetectionStrategy, Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
-import { ActivatedRoute } from '@angular/router'; // ДОБАВЛЕНО
+import { ActivatedRoute } from '@angular/router';
 import {
   IMotifCDR3SearchResult,
   IMotifCDR3SearchResultOptions,
-  IMotifCluster,
   IMotifEpitope,
   IMotifEpitopeViewOptions,
   IMotifsMetadata,
@@ -27,7 +26,7 @@ import {
 } from 'pages/motif/motif';
 import { MotifSearchState, MotifService } from 'pages/motif/motif.service';
 import { fromEvent, Observable, Subscription, timer } from 'rxjs';
-import { debounce, take } from 'rxjs/operators'; // ИЗМЕНЕНО: добавлен 'take'
+import { debounce, take } from 'rxjs/operators';
 import { ContentWrapperService } from '../../content-wrapper.service';
 
 @Component({
@@ -36,6 +35,7 @@ import { ContentWrapperService } from '../../content-wrapper.service';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MotifPageComponent implements OnInit, OnDestroy {
+  private static readonly pageScrollEventDebounceTimeout: number = 10;
   private static readonly motifPageResizeEventDebounceTimeout: number = 200;
 
   private onScrollObservable: Subscription;
@@ -83,25 +83,16 @@ export class MotifPageComponent implements OnInit, OnDestroy {
       }
     });
 
+    this.onScrollObservable = fromEvent(this.epitopesContainer.nativeElement, 'scroll')
+        .pipe(debounce(() => timer(MotifPageComponent.pageScrollEventDebounceTimeout))).subscribe(() => {
+          this.motifService.fireScrollUpdateEvent();
+        });
+
     this.onResizeObservable = fromEvent(window, 'resize')
       .pipe(debounce(() => timer(MotifPageComponent.motifPageResizeEventDebounceTimeout))).subscribe(() => {
         this.motifService.fireResizeUpdateEvent();
       });
   }
-
-  public generateMotifLink(epitope: IMotifEpitope, cluster: IMotifCluster): string {
-    const meta = cluster.meta;
-    const params = new URLSearchParams();
-
-    params.set('species', meta.species);
-    params.set('tcr_chain', meta.gene);
-    params.set('mhc_class', meta.mhcclass);
-    params.set('gene', meta.mhca);
-    params.set('epitope_seq', epitope.epitope);
-
-    return `/motif?${params.toString()}`;
-  }
-
   public isEpitopesLoading(): Observable<boolean> {
     return this.motifService.isLoading();
   }

@@ -165,7 +165,6 @@ export class MotifService {
   public async filterByUrl(filters: { species: string, tcrChain: string, mhcClass: string, gene: string, epitopeSeq: string }): Promise<void> {
     await this.load();
 
-    // --- Эта часть кода нужна только для визуального выделения в дереве ---
     this.metadata.pipe(take(1)).subscribe((metadata) => {
       const speciesNode = metadata.root.values.find((v) => v.value === filters.species);
       if (!speciesNode) { return; }

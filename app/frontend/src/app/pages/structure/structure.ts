@@ -14,61 +14,108 @@
  *     limitations under the License.
  */
 
-// The structure page reuses many of the underlying data structure from the motif
-// browser. To avoid duplicating the entire type hierarchy, we simply
-// re‑export the motif interfaces under structure‑specific aliases and extend
-// the cluster type with an optional imageUrl property.  The imageUrl will
-// point to a PNG file located under the `/assets/structure/` directory and
-// should be assigned by the StructureService when loading data.
-
-import {
-  IMotifsMetadata,
-  IMotifsMetadataTreeLevel,
-  IMotifsMetadataTreeLevelValue,
-  IMotifEpitope,
-  IMotifEpitopeViewOptions,
-  IMotifCluster,
-  IMotifCDR3SearchEntry,
-  IMotifCDR3SearchResult,
-  IMotifCDR3SearchResultOptions,
-  IMotifClusterMembersExportResponse
-} from 'pages/motif/motif';
-
-export type IStructureMetadata = IMotifsMetadata;
-export type IStructureMetadataTreeLevel = IMotifsMetadataTreeLevel;
-export type IStructureMetadataTreeLevelValue = IMotifsMetadataTreeLevelValue;
-
-// View options for structure reuse the motif epitope view options because
-// normalization toggling behaviour remains the same.
-export type IStructureEpitopeViewOptions = IMotifEpitopeViewOptions;
-
-// Extend the motif cluster interface with an optional imageUrl.  This
-// property will be used by the front‑end to display a structure image
-// corresponding to a given cluster.  It is intentionally optional so that
-// existing motif clusters remain assignable.
-export interface IStructureCluster extends IMotifCluster {
-  imageUrl?: string;
+export interface IStructuresMetadataTreeLevel {
+  readonly name: string;
+  readonly values: IStructuresMetadataTreeLevelValue[];
 }
 
-// A structure epitope contains a collection of clusters.  Each cluster in
-// turn may carry an imageUrl assigned by the StructureService.
-export interface IStructureEpitope extends IMotifEpitope {
-  clusters: IStructureCluster[];
+export interface IStructuresMetadataTreeLevelValue {
+  readonly value: string;
+  readonly hash?: string;
+  readonly next: IStructuresMetadataTreeLevel | null;
+  isOpened?: boolean;
+  isSelected?: boolean;
 }
 
-// Entry in a CDR3 search result.  It references a cluster that is of
-// structure type.
-export interface IStructureCDR3SearchEntry extends IMotifCDR3SearchEntry {
+export interface IStructuresMetadata {
+  readonly root: IStructuresMetadataTreeLevel;
+}
+
+export interface IStructuresSearchTreeFilterEntry {
+  readonly name: string;
+  readonly value: string;
+}
+
+export interface IStructuresSearchTreeFilter {
+  readonly entries: IStructuresSearchTreeFilterEntry[];
+}
+
+export interface IStructuresSearchTreeFilterResult {
+  readonly epitopes: IStructureEpitope[];
+}
+
+export interface IStructureEpitopeViewOptions {
+  isNormalized: boolean;
+}
+
+// StructuresEpitopes
+
+export interface IStructureClusterEntryAA {
+  readonly letter: string;
+  readonly length: number;
+  readonly count: number;
+  readonly freq: number;
+  readonly I: number;
+  readonly INorm: number;
+  readonly H: number;
+  readonly HNorm: number;
+}
+
+export interface IStructureClusterEntry {
+  readonly position: number;
+  readonly aa: IStructureClusterEntryAA[];
+}
+
+export interface IStructureClusterMeta {
+  readonly species: string;
+  readonly gene: string;
+  readonly mhcclass: string;
+  readonly mhca: string;
+  readonly mhcb: string;
+  readonly antigenGene: string;
+  readonly antigenSpecies: string;
+}
+
+export interface IStructureCluster {
+  readonly clusterId: string;
+  readonly size: number;
+  readonly length: number;
+  readonly vsegm: string;
+  readonly jsegm: string;
+  readonly entries: IStructureClusterEntry[];
+  readonly meta: IStructureClusterMeta;
+  readonly imageUrl: string;
+}
+
+export interface IStructureEpitope {
+  readonly epitope: string;
+  readonly hash: string;
+  readonly clusters: IStructureCluster[];
+}
+
+// -------------------------------------------------------------------------------- //
+
+export interface IStructureCDR3SearchEntry {
+  info: number;
+  cdr3: string;
   cluster: IStructureCluster;
 }
 
-// CDR3 search result adapted for structure.  Both the raw and normalized
-// cluster lists contain structure‑specific entries.
-export interface IStructureCDR3SearchResult extends IMotifCDR3SearchResult {
+export interface IStructureCDR3SearchResultOptions {
+  cdr3: string;
+  top: number;
+  gene: string;
+  substring: boolean;
+}
+
+export interface IStructureCDR3SearchResult {
+  options: IStructureCDR3SearchResultOptions;
   clusters: IStructureCDR3SearchEntry[];
   clustersNorm: IStructureCDR3SearchEntry[];
 }
 
-// Re‑export the search options and export response types unmodified.
-export type IStructureCDR3SearchResultOptions = IMotifCDR3SearchResultOptions;
-export type IStructureClusterMembersExportResponse = IMotifClusterMembersExportResponse;
+// -------------------------------------------------------------------------------- //
+
+export interface IStructureClusterMembersExportResponse {
+  link: string;
+}
