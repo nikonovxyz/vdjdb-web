@@ -17,6 +17,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.io.Source
 
 @Singleton
 case class Structures @Inject()(database: Database)(implicit ec: ExecutionContext) {
@@ -27,29 +28,33 @@ case class Structures @Inject()(database: Database)(implicit ec: ExecutionContex
   // ---------- load vdjdb.txt ----------
   private def loadVdjdb(): Table = {
     val path = database.getLocation + "/vdjdb.txt"
-    val columnTypes: Array[ColumnType] = Array(
-      ColumnType.SKIP,   // complex.id
-      ColumnType.STRING, // gene
-      ColumnType.STRING, // cdr3
-      ColumnType.STRING, // v.segm
-      ColumnType.STRING, // j.segm
-      ColumnType.STRING, // species
-      ColumnType.STRING, // mhc.a
-      ColumnType.STRING, // mhc.b
-      ColumnType.STRING, // mhc.class
-      ColumnType.STRING, // antigen.epitope
-      ColumnType.STRING, // antigen.gene
-      ColumnType.STRING, // antigen.species
-      ColumnType.SKIP,   // reference.id
-      ColumnType.SKIP,   // method
-      ColumnType.STRING, // meta
-      ColumnType.SKIP,   // cdr3fix
-      ColumnType.SKIP,   // vdjdb.score
-      ColumnType.SKIP,   // web.method
-      ColumnType.SKIP,   // web.method.seq
-      ColumnType.SKIP,   // web.cdr3fix.nc
-      ColumnType.SKIP    // web.cdr3fix.unmp
-    )
+    val headerColumns: Array[String] = {
+      val source = Source.fromFile(path)
+      try {
+        source.getLines().take(1).toList.headOption
+      } finally {
+        source.close()
+      }
+    }.map(_.split("\t", -1)).getOrElse(Array.empty[String])
+
+    require(headerColumns.nonEmpty, s"Cannot read header from $path")
+
+    val columnTypes: Array[ColumnType] = headerColumns.map {
+      case "complex.id"       => ColumnType.SKIP
+      case "gene"             => ColumnType.STRING
+      case "cdr3"             => ColumnType.STRING
+      case "v.segm"           => ColumnType.STRING
+      case "j.segm"           => ColumnType.STRING
+      case "species"          => ColumnType.STRING
+      case "mhc.a"            => ColumnType.STRING
+      case "mhc.b"            => ColumnType.STRING
+      case "mhc.class"        => ColumnType.STRING
+      case "antigen.epitope"  => ColumnType.STRING
+      case "antigen.gene"     => ColumnType.STRING
+      case "antigen.species"  => ColumnType.STRING
+      case "meta"             => ColumnType.STRING
+      case _                   => ColumnType.SKIP
+    }
 
     val opts = CsvReadOptions
       .builder(path)

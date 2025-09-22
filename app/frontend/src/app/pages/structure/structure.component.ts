@@ -70,9 +70,10 @@ export class StructurePageComponent implements OnInit, OnDestroy {
       const gene = params.get('gene');
       const mhcClass = params.get('mhc_class');
       const epitopeSeq = params.get('epitope_seq');
+      const structureId = params.get('structure_id');
 
       if (species && tcrChain && mhcClass && gene && epitopeSeq) {
-        this.structureService.filterByUrl({ species, tcrChain, mhcClass, gene, epitopeSeq });
+        this.structureService.filterByUrl({ species, tcrChain, mhcClass, gene, epitopeSeq, structureId: structureId || undefined });
 
       } else {
         const cdr3Query = params.get('query');

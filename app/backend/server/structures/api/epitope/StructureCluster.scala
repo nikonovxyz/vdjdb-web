@@ -47,10 +47,25 @@ object StructureCluster {
     val mhcb = table.stringColumn("mhc.b").asSet.asScala
     val antigenGene = table.stringColumn("antigen.gene").asSet.asScala
     val antigenSpecies = table.stringColumn("antigen.species").asSet.asScala
+    val cellSubset =
+      if (table.columnNames().contains("cell.subset")) {
+        table.stringColumn("cell.subset").asSet().asScala.toSeq
+      } else {
+        Seq.empty[String]
+      }
 
     assert(species.size == 1 && gene.size == 1 && mhcclass.size == 1 && mhca.size == 1 && mhcb.size == 1 && antigenGene.size == 1 && antigenSpecies.size == 1)
 
-    val meta = StructureClusterMeta(species.head, gene.head, mhcclass.head, mhca.head, mhcb.head, antigenGene.head, antigenSpecies.head)
+    val meta = StructureClusterMeta(
+      species.head,
+      gene.head,
+      mhcclass.head,
+      mhca.head,
+      mhcb.head,
+      antigenGene.head,
+      antigenSpecies.head,
+      cellSubset.headOption.getOrElse("")
+    )
 
     StructureCluster(clusterId, size, length, v.head, j.head, entries, meta)
   }

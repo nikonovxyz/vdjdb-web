@@ -21,6 +21,7 @@ import com.antigenomics.vdjdb.db.Column
 import play.api.libs.json.{Format, Json}
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 
 case class DatabaseMetadata(numberOfRecords: Int, numberOfColumns: Int, columns: List[DatabaseColumnInfo]) {
   require(numberOfRecords > 0, DatabaseMetadata.numberOfRecordsRequirementErrorMessage)
@@ -40,11 +41,26 @@ object DatabaseMetadata {
   def createFromInstance(instance: VdjdbInstance): DatabaseMetadata = {
     val dbInstance = instance.getDbInstance
     val numberOfRecords = dbInstance.getRows.size()
-    val columns = dbInstance.getColumns
-      .asScala
-      .map((c: Column) => DatabaseColumnInfo.createInfoFromColumn(c))
-      .filter((info: DatabaseColumnInfo) => info.visible)
-      .toList
-    DatabaseMetadata(numberOfRecords, columns.size, columns)
+    val columnsBuffer = ArrayBuffer.empty[DatabaseColumnInfo]
+    dbInstance.getColumns.asScala.foreach { column: Column =>
+      val info = DatabaseColumnInfo.createInfoFromColumn(column)
+      if (info.visible) {
+        columnsBuffer += info
+      }
+    }
+
+    if (!columnsBuffer.exists(_.name == "contacts")) {
+      columnsBuffer += DatabaseColumnInfo(
+        name = "contacts",
+        columnType = "txt",
+        visible = true,
+        dataType = "contact",
+        title = "Structure",
+        comment = "Links and previews for available structures",
+        values = List.empty
+      )
+    }
+
+    DatabaseMetadata(numberOfRecords, columnsBuffer.size, columnsBuffer.toList)
   }
 }

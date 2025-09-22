@@ -2,8 +2,9 @@ package backend.controllers
 
 import javax.inject._
 import play.api.mvc._
-import java.nio.file.{Files, Paths, Path}
+import java.nio.file.{Files, Path}
 import backend.server.database.Database
+import backend.server.structures.Structures
 import scala.concurrent._
 import ExecutionContext.Implicits.global
 
@@ -11,8 +12,7 @@ import ExecutionContext.Implicits.global
 class ImageController @Inject()(cc: ControllerComponents, db: Database)
   extends AbstractController(cc) {
 
-  private val baseDir: Path =
-    Paths.get(db.getLocation, "structure").toAbsolutePath.normalize()
+  private val baseDir: Path = Structures.resolveImageRoot(db)
 
   def structure(path: String): Action[AnyContent] = Action {
     val requested = baseDir.resolve(path).normalize()

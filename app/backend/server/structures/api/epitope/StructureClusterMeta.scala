@@ -18,7 +18,14 @@ package backend.server.structures.api.epitope
 
 import play.api.libs.json.{Format, Json}
 
-case class StructureClusterMeta(species: String, gene: String, mhcclass: String, mhca: String, mhcb: String, antigenGene: String, antigenSpecies: String)
+case class StructureClusterMeta(species: String,
+                                gene: String,
+                                mhcclass: String,
+                                mhca: String,
+                                mhcb: String,
+                                antigenGene: String,
+                                antigenSpecies: String,
+                                cellSubset: String)
 
 object StructureClusterMeta {
   implicit val structureMetaFormat: Format[StructureClusterMeta] = Json.format[StructureClusterMeta]

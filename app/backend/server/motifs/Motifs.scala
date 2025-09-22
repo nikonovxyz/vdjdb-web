@@ -27,7 +27,9 @@ import javax.inject.{Inject, Singleton}
 import tech.tablesaw.api.{ColumnType, Table}
 import tech.tablesaw.io.csv.CsvReadOptions
 
+import java.util.Locale
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Success
 
@@ -36,6 +38,7 @@ case class Motifs @Inject()(database: Database)(implicit tfp: TemporaryFileProvi
   private final val members = Motifs.parseClusterMembersFileIntoDataFrame(database.getClusterMembersFile.map(_.getPath))
   private final val table = Motifs.parseMotifFileIntoDataFrame(database.getMotifFile.map(_.getPath))
   private final val cdr3Range = Motifs.parseCDR3LengthRange(table)
+  private final val availabilityKeys: Set[String] = Motifs.buildAvailabilityKeys(table)
 
   private final val metadataLevels = Seq("species", "gene", "mhc.class", "mhc.a", "antigen.epitope")
   private final val metadata = MotifsMetadata.generateMetadataFromLevels(table, metadataLevels)
@@ -45,6 +48,8 @@ case class Motifs @Inject()(database: Database)(implicit tfp: TemporaryFileProvi
   def getTable: Table = table
 
   def getMetadata: MotifsMetadata = metadata
+
+  def getAvailabilityKeys: Set[String] = availabilityKeys
 
   def filter(filter: MotifsSearchTreeFilter)(implicit ec: ExecutionContext): Future[Option[MotifsSearchTreeFilterResult]] = {
     Future {
@@ -153,6 +158,31 @@ case class Motifs @Inject()(database: Database)(implicit tfp: TemporaryFileProvi
 object Motifs {
   private final val maxTopValueInCDR3Search: Int = 15
   private final val minSubstringCDR3Length: Int = 3
+
+  private def buildAvailabilityKeys(table: Table): Set[String] = {
+    val requiredColumns = Seq("species", "gene", "mhc.class", "mhc.a", "antigen.epitope")
+    if (!requiredColumns.forall(table.columnNames().contains)) {
+      Set.empty
+    } else {
+      val speciesCol = table.stringColumn("species")
+      val geneCol = table.stringColumn("gene")
+      val mhcClassCol = table.stringColumn("mhc.class")
+      val mhcACol = table.stringColumn("mhc.a")
+      val epitopeCol = table.stringColumn("antigen.epitope")
+      val builder = mutable.HashSet.empty[String]
+      var idx = 0
+      val total = table.rowCount()
+      while (idx < total) {
+        val values = Seq(speciesCol.get(idx), geneCol.get(idx), mhcClassCol.get(idx), mhcACol.get(idx), epitopeCol.get(idx))
+          .map(v => Option(v).map(_.trim).getOrElse(""))
+        if (values.forall(_.nonEmpty)) {
+          builder += values.map(_.toLowerCase(Locale.ROOT)).mkString("|")
+        }
+        idx += 1
+      }
+      builder.toSet
+    }
+  }
 
   def parseMotifFileIntoDataFrame(path: Option[String]): Table = {
     path match {

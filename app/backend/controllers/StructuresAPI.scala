@@ -3,7 +3,9 @@ package backend.controllers
 import akka.actor.ActorSystem
 import akka.stream.Materializer
 import backend.server.limit.RequestLimits
-import backend.server.structures.{Structures, StructureList}
+import backend.server.structures.Structures
+import backend.server.structures.api.cdr3.{StructureCDR3SearchRequest, StructureCDR3SearchResult}
+import backend.server.structures.api.filter.StructuresSearchTreeFilterResult
 import backend.server.motifs.api.filter.MotifsSearchTreeFilter
 import javax.inject._
 import play.api.libs.json._
@@ -23,20 +25,21 @@ class StructuresAPI @Inject()(
     Future.successful(Ok(Json.obj("root" -> structures.getMetadata.root)))
   }
 
-  // filter: returns a flat list { total, items: [{ id, cd, meta, imageUrl }] }
+  // filter: returns StructureSearchTreeFilterResult (same contract as motifs)
   def filter: Action[JsValue] = Action.async(parse.json) { implicit req =>
     req.body.validate[MotifsSearchTreeFilter].fold(
       e => Future.successful(BadRequest(JsError.toJson(e))),
-      f => structures.filter(f).map { list: StructureList =>
-        val itemsWithUrl = list.items.map { it =>
-          Json.obj(
-            "id" -> it.id,
-            "cd" -> it.cd,
-            "meta" -> it.meta,
-            "imageUrl" -> routes.ImageController.structure(s"cd${it.cd}/${it.id}.png").url
-          )
-        }
-        Ok(Json.obj("total" -> list.total, "items" -> itemsWithUrl))
+      f => structures.filter(f).map { result: StructuresSearchTreeFilterResult =>
+        Ok(Json.toJson(result))
+      }.recover { case t => InternalServerError("An error occurred: " + t.getMessage) }
+    )
+  }
+
+  def cdr3: Action[JsValue] = Action.async(parse.json) { implicit req =>
+    req.body.validate[StructureCDR3SearchRequest].fold(
+      e => Future.successful(BadRequest(JsError.toJson(e))),
+      f => structures.cdr3(f.cdr3, f.substring, f.gene, f.top).map { result: StructureCDR3SearchResult =>
+        Ok(Json.toJson(result))
       }.recover { case t => InternalServerError("An error occurred: " + t.getMessage) }
     )
   }

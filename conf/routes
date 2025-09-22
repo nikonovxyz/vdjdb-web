@@ -45,6 +45,11 @@ POST        /api/motifs/members                         backend.controllers.Moti
 GET         /api/structures/metadata                        backend.controllers.StructuresAPI.getMetadata
 + nocsrf
 POST        /api/structures/filter                          backend.controllers.StructuresAPI.filter
++ nocsrf
+POST        /api/structures/cdr3                            backend.controllers.StructuresAPI.cdr3
+
+# Search availability
+GET         /api/search/availability                       backend.controllers.SearchAvailabilityAPI.availability
 
 # Streams <db>/structure/cd[4|8]/<id>.png
 GET   /structure-files/*path   backend.controllers.ImageController.structure(path: String)

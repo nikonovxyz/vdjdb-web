@@ -15,8 +15,7 @@
  */
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
-import { IStructureClusterMeta } from 'pages/structure/structure';
-import { IStructureCluster, IStructureEpitope } from 'pages/structure/structure';
+import { IStructureClusterMeta, IStructureCluster, IStructureEpitope } from 'pages/structure/structure';
 import { StructuresServiceEvents } from 'pages/structure/structure.service';
 import { StructureService } from 'pages/structure/structure.service';
 import { Subscription } from 'rxjs';

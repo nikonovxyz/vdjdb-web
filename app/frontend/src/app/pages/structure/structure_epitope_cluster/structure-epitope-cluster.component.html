@@ -17,17 +17,37 @@
 <h5 class="ui left floated header" style="margin-top: 10px; margin-bottom: 10px" #HeaderContent>
     <div class="content with-options">
         <span>ID: {{ cluster.clusterId }}</span>&nbsp;&nbsp;&nbsp;
-        <span>Cluster size: {{ cluster.size }}</span>&nbsp;&nbsp;&nbsp;
-        <span>CDR3 length: {{ cluster.length }}</span>&nbsp;&nbsp;&nbsp;
-        <span>{{ cluster.vsegm }}&nbsp;/&nbsp;{{ cluster.jsegm }}</span>
+        <ng-container *ngIf="cluster.size > 1">
+            <span>Cluster size: {{ cluster.size }}</span>&nbsp;&nbsp;&nbsp;
+        </ng-container>
+        <ng-container *ngIf="cluster.length > 0">
+            <span>CDR3 length: {{ cluster.length }}</span>&nbsp;&nbsp;&nbsp;
+        </ng-container>
+        <ng-container *ngIf="cluster.vsegm || cluster.jsegm">
+            <span>
+                <ng-container *ngIf="cluster.vsegm">{{ cluster.vsegm }}</ng-container>
+                <ng-container *ngIf="cluster.vsegm && cluster.jsegm">&nbsp;/&nbsp;</ng-container>
+                <ng-container *ngIf="cluster.jsegm">{{ cluster.jsegm }}</ng-container>
+            </span>&nbsp;&nbsp;&nbsp;
+        </ng-container>
         <div class="sub header">
-            <span>Species: {{ cluster.meta.species }}</span>&nbsp;&nbsp;&nbsp;
-            <span>Gene: {{ cluster.meta.gene }}</span>&nbsp;&nbsp;&nbsp;
-            <span>MHC.class: {{ cluster.meta.mhcclass }}</span>&nbsp;&nbsp;&nbsp;
-            <span>MHC.A: {{ cluster.meta.mhca }}</span>&nbsp;&nbsp;&nbsp;
-            <span>MHC.B: {{ cluster.meta.mhcb }}</span>&nbsp;&nbsp;&nbsp;
-            <span>Antigen.Gene: {{ cluster.meta.antigenGene }}</span>&nbsp;&nbsp;&nbsp;
-            <span>Antigen.Species: {{ cluster.meta.antigenSpecies }}</span>&nbsp;&nbsp;&nbsp;
+            <ng-container *ngIf="cluster.meta && cluster.meta.species">
+                <span>Species: {{ cluster.meta.species }}</span>&nbsp;&nbsp;&nbsp;
+            </ng-container>
+            <ng-container *ngIf="cluster.meta && cluster.meta.gene">
+                <span>Gene: {{ cluster.meta.gene }}</span>&nbsp;&nbsp;&nbsp;
+            </ng-container>
+            <ng-container *ngIf="cluster.meta && cluster.meta.mhcclass">
+                <span>MHC.class: {{ cluster.meta.mhcclass }}</span>&nbsp;&nbsp;&nbsp;
+            </ng-container>
+            <ng-container *ngIf="cluster.meta && cluster.meta.mhca">
+                <span>MHC.A: {{ cluster.meta.mhca }}</span>&nbsp;&nbsp;&nbsp;
+            </ng-container>
+            <ng-container *ngIf="cluster.meta && cluster.meta.mhcb">
+                <span>MHC.B: {{ cluster.meta.mhcb }}</span>&nbsp;&nbsp;&nbsp;
+            </ng-container>
+            <span>Antigen.Gene: {{ cluster.meta?.antigenGene }}</span>&nbsp;&nbsp;&nbsp;
+            <span>Antigen.Species: {{ cluster.meta?.antigenSpecies }}</span>&nbsp;&nbsp;&nbsp;
         </div>
     </div>
 </h5>

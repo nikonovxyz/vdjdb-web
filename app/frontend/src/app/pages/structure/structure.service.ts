@@ -15,13 +15,13 @@
  */
 
 import { Injectable } from '@angular/core';
-import {IMotifsSearchTreeFilter} from 'pages/motif/motif';
-import {MotifSearchState} from 'pages/motif/motif.service';
 import {
   IStructureCDR3SearchEntry,
   IStructureCDR3SearchResult,
   IStructureCDR3SearchResultOptions,
   IStructureCluster,
+  IStructureClusterEntry,
+  IStructureClusterMeta,
   IStructureClusterMembersExportResponse,
   IStructureEpitope,
   IStructureEpitopeViewOptions,
@@ -29,6 +29,7 @@ import {
   IStructuresMetadataTreeLevel,
   IStructuresMetadataTreeLevelValue,
   IStructuresSearchTreeFilter,
+  IStructuresSearchTreeFilterEntry,
   IStructuresSearchTreeFilterResult
 } from 'pages/structure/structure';
 import { combineLatest, Observable, ReplaySubject, Subject } from 'rxjs';
@@ -150,12 +151,13 @@ export class StructureService {
 
   public async searchCDR3ByUrl(query: string): Promise<void> {
     await this.load();
-    this.setSearchState(MotifSearchState.SEARCH_CDR3);
+    this.setSearchState(StructureSearchState.SEARCH_CDR3);
     this.searchCDR3(query);
   }
 
-  public async filterByUrl(filters: { species: string, tcrChain: string, mhcClass: string, gene: string, epitopeSeq: string }): Promise<void> {
+  public async filterByUrl(filters: { species: string, tcrChain: string, mhcClass: string, gene: string, epitopeSeq: string, structureId?: string }): Promise<void> {
     await this.load();
+    this.setSearchState(StructureSearchState.SEARCH_TREE);
 
     this.metadata.pipe(take(1)).subscribe((metadata) => {
       const speciesNode = metadata.root.values.find((v) => v.value === filters.species);
@@ -177,7 +179,7 @@ export class StructureService {
       this.updateSelected();
     });
 
-    const treeFilter: IMotifsSearchTreeFilter = {
+    const treeFilter: IStructuresSearchTreeFilter = {
       entries: [
         { name: 'species', value: filters.species },
         { name: 'gene', value: filters.tcrChain },
@@ -191,6 +193,7 @@ export class StructureService {
   }
 
   public searchCDR3(cdr3: string, substring: boolean = false, gene: string = 'BOTH', top: number = 15): void {
+    this.setSearchState(StructureSearchState.SEARCH_CDR3);
     if (cdr3 === null || cdr3 === undefined || cdr3.length === 0) {
       this.notifications.warn('Structure CDR3', 'Empty search input');
       return;
@@ -201,40 +204,35 @@ export class StructureService {
     }
     this.loadingState.next(true);
     Utils.HTTP.post('/api/structures/cdr3', { cdr3, substring, gene, top }).then((response) => {
-      const raw = JSON.parse(response.response);
+     const raw = JSON.parse(response.response);
+      const result = this.normalizeStructureCdr3Response(raw);
+      result.options.cdr3 = cdr3;
+      result.options.substring = substring;
+      result.options.gene = gene;
+      result.options.top = top;
 
-      const result = raw.epitopes
-        ? raw : {
-        epitopes: [{
-          hash: 'structures',
-          epitope: 'structures',
-          clusters: (raw.items || []).map((it: any) => ({
-            size: it.size || 1,
-            meta: it.meta,
-            imageUrl: it.imageUrl
-          }))
-        }]
-      } as any;
-
-      const hasStructureId = (cl: any): boolean => {
-        let meta: any = cl && cl.meta;
-        if (typeof meta === 'string') {
-          try { meta = JSON.parse(meta); } catch { meta = undefined; }
-        }
-        const sid = meta && typeof meta['structure.id'] === 'string' ? meta['structure.id'].trim() : '';
+      const hasStructureId = (cl: IStructureCluster): boolean => {
+        if (!cl) { return false; }
+        const sid = typeof cl.clusterId === 'string' ? cl.clusterId.trim() : '';
         return sid.length > 0;
       };
 
-      const clusters: IStructureCDR3SearchEntry[]     = result.clusters ? result.clusters : [];
-      const clustersNorm: IStructureCDR3SearchEntry[] = result.clustersNorm ? result.clustersNorm : [];
+      const clusters: IStructureCDR3SearchEntry[] = Array.isArray(result.clusters) ? [ ...result.clusters ] : [];
+      const clustersNorm: IStructureCDR3SearchEntry[] = Array.isArray(result.clustersNorm) ? [ ...result.clustersNorm ] : [];
 
-      result.clusters     = clusters.filter((e: IStructureCDR3SearchEntry) => hasStructureId(e.cluster));
-      result.clustersNorm = clustersNorm.filter((e: IStructureCDR3SearchEntry) => hasStructureId(e.cluster));
+      const filteredClusters = clusters.filter((e: IStructureCDR3SearchEntry) => hasStructureId(e.cluster));
+      const filteredClustersNorm = clustersNorm.filter((e: IStructureCDR3SearchEntry) => hasStructureId(e.cluster));
 
-      result.clusters.forEach((entry: IStructureCDR3SearchEntry) => {
+      filteredClusters.forEach((entry: IStructureCDR3SearchEntry) => {
+        if (entry && entry.cluster && !(entry.cluster as any).rawMeta) {
+          (entry.cluster as any).rawMeta = entry.cluster.meta;
+        }
         this.assignStructureImageUrl(entry.cluster as IStructureCluster);
       });
-      result.clustersNorm.forEach((entry: IStructureCDR3SearchEntry) => {
+      filteredClustersNorm.forEach((entry: IStructureCDR3SearchEntry) => {
+        if (entry && entry.cluster && !(entry.cluster as any).rawMeta) {
+          (entry.cluster as any).rawMeta = entry.cluster.meta;
+        }
         this.assignStructureImageUrl(entry.cluster as IStructureCluster);
       });
 
@@ -254,8 +252,11 @@ export class StructureService {
         }
       };
 
-      result.clusters.sort(comparator);
-      result.clustersNorm.sort(comparator);
+      filteredClusters.sort(comparator);
+      filteredClustersNorm.sort(comparator);
+
+      result.clusters = filteredClusters;
+      result.clustersNorm = filteredClustersNorm;
 
       this.clusters.next(result);
       this.loadingState.next(false);
@@ -266,60 +267,63 @@ export class StructureService {
       this.notifications.error('Structure CDR3', 'Unable to load results');
     });
   }
+ 
+  private normalizeStructureCdr3Response(raw: any): IStructureCDR3SearchResult {
+    const defaultOptions: IStructureCDR3SearchResultOptions = { cdr3: '', top: 0, gene: 'BOTH', substring: false };
+    const options = raw && raw.options ? raw.options as IStructureCDR3SearchResultOptions : defaultOptions;
+    const clusters = Array.isArray(raw && raw.clusters) ? raw.clusters as IStructureCDR3SearchEntry[] : [];
+    const clustersNorm = Array.isArray(raw && raw.clustersNorm) ? raw.clustersNorm as IStructureCDR3SearchEntry[] : [];
+    return { options, clusters, clustersNorm };
+  }
 
   public select(treeFilter: IStructuresSearchTreeFilter): void {
+    this.setSearchState(StructureSearchState.SEARCH_TREE);
     this.updateSelected();
     this.loadingState.next(true);
     Utils.HTTP.post('/api/structures/filter', treeFilter).then((response) => {
       try {
         const raw: any = JSON.parse(response.response);
 
-        // Normalize: if backend returned {items:[]}, wrap it to look like Structure's {epitopes:[{clusters:[]}]}
-        const result: IStructuresSearchTreeFilterResult = (raw && Array.isArray(raw.epitopes))
-            ? raw
-            : {
-              epitopes: [{
-                // make hash unique per selection so UI can replace/append properly
-                hash: 'structures:' + JSON.stringify(treeFilter && (treeFilter as any).entries ? (treeFilter as any).entries : []),
-                epitope: 'structures',
-                clusters: (raw && Array.isArray(raw.items))
-                    ? (raw.items as any[]).map((it: any) => ({
-                      size: it.size ? Number(it.size) : 1,
-                      meta: it.meta,
-                      imageUrl: it.imageUrl
-                    }))
-                    : []
-              }]
-            } as any;
+        combineLatest([
+          this.metadata.pipe(take(1)),
+          this.epitopes.pipe(take(1))
+        ]).pipe(take(1)).subscribe(([ metadata, current ]: [ IStructuresMetadata, IStructureEpitope[] ]) => {
+          let result: IStructuresSearchTreeFilterResult;
+          try {
+            result = this.normalizeStructureFilterResult(treeFilter, raw, metadata);
+          } catch (normalizationError) {
+            this.loadingState.next(false);
+            this.notifications.error('Structure', 'Unexpected response from /api/structures/filter');
+            return;
+          }
 
-        if (!Array.isArray(result.epitopes)) {
-          throw new Error('Bad /api/structures/filter response: no epitopes[]');
-        }
+          if (!Array.isArray(result.epitopes)) {
+            this.loadingState.next(false);
+            this.notifications.error('Structure', 'Unexpected response from /api/structures/filter');
+            return;
+          }
 
-        const hasStructureId = (cl: any): boolean => {
-          let meta: any = cl && cl.meta;
-          if (typeof meta === 'string') { try { meta = JSON.parse(meta); } catch { meta = undefined; } }
-          const sid = meta && typeof meta['structure.id'] === 'string' ? meta['structure.id'].trim() : '';
-          return sid.length > 0;
-        };
-
-        this.epitopes.pipe(take(1)).subscribe((epitopes: IStructureEpitope[]) => {
-          const hashes: string[] = epitopes.map((ep) => ep.hash);
+          const hashes: string[] = current.map((ep) => ep.hash);
           const incoming: IStructureEpitope[] = (result.epitopes as unknown as IStructureEpitope[])
               .filter((ep: IStructureEpitope) => hashes.indexOf(ep.hash) === -1);
 
           const newEpitopes: IStructureEpitope[] = incoming
-              .map((n: IStructureEpitope) => {
-                const all: IStructureCluster[] = (n.clusters ? n.clusters : []).filter(hasStructureId) as any;
-                all.forEach((cl: IStructureCluster) => this.assignStructureImageUrl(cl));
-                const filtered: IStructureCluster[] = all
-                    .filter((cl: any) => !!(cl as any).imageUrl)
-                    .sort((l: IStructureCluster, r: IStructureCluster) => r.size - l.size);
-                return { ...n, clusters: filtered };
+              .map((epitope: IStructureEpitope) => {
+                const filteredClusters = (epitope.clusters || [])
+                    .map((cluster) => {
+                      if (!(cluster as any).rawMeta) {
+                        (cluster as any).rawMeta = cluster.meta;
+                      }
+                      this.assignStructureImageUrl(cluster);
+                      return cluster;
+                    })
+                    .filter((cluster) => !!cluster.imageUrl)
+                    .sort((left, right) => right.size - left.size);
+                return { ...epitope, clusters: filteredClusters };
               })
-              .filter((e: IStructureEpitope) => !!e.clusters && e.clusters.length > 0);
+              .filter((epitope) => Array.isArray(epitope.clusters) && epitope.clusters.length > 0);
 
-          this.epitopes.next([ ...epitopes, ...newEpitopes ]);
+          this.epitopes.next([ ...current, ...newEpitopes ]);
           this.loadingState.next(false);
           // tslint:disable-next-line:no-magic-numbers
           this.notifications.info('Structure', 'Loaded successfully', 1000);
@@ -410,9 +414,145 @@ export class StructureService {
     }));
   }
 
+  private normalizeStructureFilterResult(treeFilter: IStructuresSearchTreeFilter, raw: any, metadata: IStructuresMetadata): IStructuresSearchTreeFilterResult {
+    if (raw && Array.isArray(raw.epitopes)) {
+      return raw;
+    }
+
+    const entries = Array.isArray(treeFilter && treeFilter.entries) ? treeFilter.entries : [];
+    const items = raw && Array.isArray(raw.items) ? raw.items : [];
+
+    const hash = this.resolveEpitopeHashFromMetadata(metadata, entries) || this.buildFallbackHash(entries);
+    const epitopeLabel = this.resolveEpitopeLabel(entries) || this.extractEpitopeFromItems(items) || 'structures';
+
+    const clusters = items.map((item: any) => this.asStructureCluster(item));
+
+    return {
+      epitopes: [
+        {
+          hash,
+          epitope: epitopeLabel,
+          clusters
+        }
+      ]
+    };
+  }
+
+  private resolveEpitopeHashFromMetadata(metadata: IStructuresMetadata, entries: IStructuresSearchTreeFilterEntry[]): string | undefined {
+    if (!metadata || !metadata.root || !Array.isArray(entries) || entries.length === 0) {
+      return undefined;
+    }
+
+    let level: IStructuresMetadataTreeLevel | null = metadata.root;
+    for (let index = 0; index < entries.length; ++index) {
+      const entry = entries[index];
+      if (!level) {
+        return undefined;
+      }
+      const value = level.values.find((candidate) => candidate.value === entry.value);
+      if (!value) {
+        return undefined;
+      }
+      if (index === entries.length - 1) {
+        return value.hash;
+      }
+      level = value.next;
+    }
+    return undefined;
+  }
+
+  private resolveEpitopeLabel(entries: IStructuresSearchTreeFilterEntry[]): string | undefined {
+    if (!Array.isArray(entries)) {
+      return undefined;
+    }
+    const epitopeEntry = entries.slice().reverse().find((entry) => entry && entry.name === 'antigen.epitope');
+    return epitopeEntry && typeof epitopeEntry.value === 'string' ? epitopeEntry.value : undefined;
+  }
+
+  private extractEpitopeFromItems(items: any[]): string | undefined {
+    if (!Array.isArray(items)) {
+      return undefined;
+    }
+    for (const item of items) {
+      const meta = item && item.meta;
+      const candidate = this.pickMetaValue(meta, [ 'antigen.epitope', 'antigenEpitope', 'antigen_epitope' ]);
+      if (candidate) {
+        return candidate;
+      }
+    }
+    return undefined;
+  }
+
+  private asStructureCluster(item: any): IStructureCluster {
+    const meta = item && typeof item.meta === 'object' ? item.meta : {};
+    const clusterMeta: IStructureClusterMeta = {
+      species: this.pickMetaValue(meta, [ 'species' ]) || '',
+      gene: this.pickMetaValue(meta, [ 'gene' ]) || '',
+      mhcclass: this.pickMetaValue(meta, [ 'mhc.class', 'mhcclass' ]) || '',
+      mhca: this.pickMetaValue(meta, [ 'mhc.a', 'mhca' ]) || '',
+      mhcb: this.pickMetaValue(meta, [ 'mhc.b', 'mhcb' ]) || '',
+      antigenGene: this.pickMetaValue(meta, [ 'antigen.gene', 'antigenGene' ]) || '',
+      antigenSpecies: this.pickMetaValue(meta, [ 'antigen.species', 'antigenSpecies' ]) || '',
+      cellSubset: this.pickMetaValue(meta, [ 'cell.subset', 'cellSubset', 'cell_subset' ]) || ''
+    };
+
+    const clusterId = item && item.id ? String(item.id) : this.pickMetaValue(meta, [ 'structure.id', 'structureId' ]) || this.buildClusterIdFallback(meta);
+    const entries: IStructureClusterEntry[] = [];
+
+    const cluster: IStructureCluster = {
+      clusterId,
+      size: Number(item && item.size ? item.size : 1),
+      length: Number(item && item.length ? item.length : 0),
+      vsegm: this.pickMetaValue(meta, [ 'v', 'vsegm', 'v.segm' ]) || '',
+      jsegm: this.pickMetaValue(meta, [ 'j', 'jsegm', 'j.segm' ]) || '',
+      entries,
+      meta: clusterMeta,
+      imageUrl: item && typeof item.imageUrl === 'string' ? item.imageUrl : this.buildStructureImageUrlFallback(clusterId, item && item.cd)
+    };
+
+    (cluster as any).rawMeta = meta;
+    return cluster;
+  }
+
+  private pickMetaValue(meta: any, keys: string[]): string | undefined {
+    if (!meta) {
+      return undefined;
+    }
+    for (const key of keys) {
+      const candidate = meta[key];
+      if (typeof candidate === 'string' && candidate.trim().length > 0) {
+        return candidate.trim();
+      }
+    }
+    return undefined;
+  }
+
+  private buildClusterIdFallback(meta: any): string {
+    const base = JSON.stringify(meta || {});
+    const hash = Utils.String.hashCode(base);
+    return `structure:${hash}`;
+  }
+
+  private buildStructureImageUrlFallback(clusterId: string, cd: any): string | undefined {
+    if (!clusterId) {
+      return undefined;
+    }
+    const trimmedId = clusterId.trim();
+    if (!trimmedId) {
+      return undefined;
+    }
+    const numericCd = Number(cd);
+    const dir = numericCd === 4 ? 'cd4' : 'cd8';
+    return `/structure-files/${dir}/${trimmedId}.png`;
+  }
+
+  private buildFallbackHash(entries: IStructuresSearchTreeFilterEntry[]): string {
+    return 'structures:' + JSON.stringify(entries || []);
+  }
+
 /*  private assignStructureImageUrl(cluster: IStructureCluster): void {
     try {
-      let rawMeta: any = (cluster as any).meta;
+      let rawMeta: any = (cluster as any).rawMeta || (cluster as any).meta;
       if (typeof rawMeta === 'string') {
         try {
           rawMeta = JSON.parse(rawMeta);
@@ -464,14 +604,25 @@ export class StructureService {
         return;
       }
 
-      let rawMeta: any = (cluster as any).meta;
+      let rawMeta: any = (cluster as any).rawMeta || (cluster as any).meta;
       if (typeof rawMeta === 'string') {
         try { rawMeta = JSON.parse(rawMeta); } catch { rawMeta = undefined; }
       }
 
+      if (rawMeta && typeof rawMeta === 'object' && typeof cluster.clusterId === 'string' && !(rawMeta as any)['structure.id']) {
+        (rawMeta as any)['structure.id'] = cluster.clusterId;
+      }
+      if (rawMeta && typeof rawMeta === 'object' && (rawMeta as any)['cell.subset'] === undefined) {
+        const cellSubset = (cluster.meta as any && (cluster.meta as any).cellSubset) ? (cluster.meta as any).cellSubset : undefined;
+        if (typeof cellSubset === 'string' && cellSubset.length > 0) {
+          (rawMeta as any)['cell.subset'] = cellSubset;
+        }
+      }
+
       const sid = (rawMeta && typeof rawMeta['structure.id'] === 'string')
           ? rawMeta['structure.id'].trim() : '';
-      if (!sid) { (cluster as any).imageUrl = undefined; return; }
+      const resolvedSid = sid || (typeof cluster.clusterId === 'string' ? cluster.clusterId.trim() : '');
+      if (!resolvedSid) { (cluster as any).imageUrl = undefined; return; }
 
       let subsetRaw = '';
       if (rawMeta && typeof rawMeta === 'object') {
@@ -489,7 +640,7 @@ export class StructureService {
         dir = 'cd4';
       }
 
-      (cluster as any).imageUrl = `/structure-files/${dir}/${sid}.png`;
+      (cluster as any).imageUrl = `/structure-files/${dir}/${resolvedSid}.png`;
     } catch {
       (cluster as any).imageUrl = undefined;
     }

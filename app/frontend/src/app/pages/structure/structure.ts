@@ -74,6 +74,7 @@ export interface IStructureClusterMeta {
   readonly mhcb: string;
   readonly antigenGene: string;
   readonly antigenSpecies: string;
+  readonly cellSubset: string;
 }
 
 export interface IStructureCluster {
