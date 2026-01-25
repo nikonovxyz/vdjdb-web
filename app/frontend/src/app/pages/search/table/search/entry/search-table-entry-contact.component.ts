@@ -189,7 +189,7 @@ export class SearchTableEntryContactComponent extends TableEntry {
             return undefined;
         }
         if (value && typeof value === 'object') {
-            const prioritizedKeys = [ 'structure', 'structure_id', 'structureId', 'structure.hash', 'structureHash', 'structure.id', 'hash', 'id' ];
+            const prioritizedKeys = [ 'structure', 'structure_id', 'structureId', 'structure.hash', 'structureHash', 'structure.id', 'hash', 'id', 'TCR_hash', 'tcr_hash', 'tcrHash' ];
             for (const key of prioritizedKeys) {
                 const candidate = this.extractIdFromUnknown(this.getValueByPath(value, key));
                 if (candidate) {
@@ -276,7 +276,6 @@ export class SearchTableEntryContactComponent extends TableEntry {
             return;
         }
 
-        // Trigger change detection so the popup picks up latest bindings before positioning.
         this.changeDetector.detectChanges();
         if (this.popupDirective) {
             this.popupDirective.updateView(visible);

@@ -26,8 +26,8 @@ case class Structures @Inject()(database: Database)(implicit ec: ExecutionContex
 
   private val structureFilesRoot: Path = Structures.resolveImageRoot(database)
   private val standardHtmlDir: Path = structureFilesRoot.resolve("structure")
-  private val simpleHtmlDir: Path = structureFilesRoot.resolve("structure_simple")
   private val visualizationMappings: Map[String, StructureVisualization] = loadVisualizationMappings()
+  private lazy val motifClusterIdIndex: Map[String, String] = loadMotifClusterIdIndex(buildStructureKeySet())
   private val maxTopValueInCDR3Search: Int = 15
 
   private def loadVisualizationMappings(): Map[String, StructureVisualization] = {
@@ -62,6 +62,111 @@ case class Structures @Inject()(database: Database)(implicit ec: ExecutionContex
         }
       }.toMap
     }
+  }
+
+  private case class ChainInfo(cdr3: String, vsegm: String, jsegm: String, motifClusterId: Option[String])
+
+  private def firstValueForGene(table: Table, gene: String, column: String): Option[String] = {
+    if (!table.columnNames().contains("gene") || !table.columnNames().contains(column)) {
+      None
+    } else {
+      val filtered = table.where(table.stringColumn("gene").isEqualTo(gene))
+      if (filtered.rowCount() == 0) None else firstValue(filtered, column)
+    }
+  }
+
+  private def loadMotifClusterIdIndex(allowedKeys: Set[String]): Map[String, String] = {
+    if (allowedKeys.isEmpty) {
+      return Map.empty
+    }
+    database.getClusterMembersFile match {
+      case Some(file) if file.exists() =>
+        val source = Source.fromFile(file, StandardCharsets.UTF_8.name())
+        try {
+          val iter = source.getLines()
+          if (!iter.hasNext) {
+            Map.empty
+          } else {
+            val header = iter.next().split("\t", -1)
+            val index = header.zipWithIndex.toMap
+            val required = Seq("species", "gene", "antigen.epitope", "cdr3aa", "v.segm", "j.segm", "cid")
+            if (!required.forall(index.contains)) {
+              Map.empty
+            } else {
+              val builder = mutable.HashMap.empty[String, String]
+              iter.foreach { line =>
+                val cols = line.split("\t", -1)
+                if (cols.length > index("cid")) {
+                  val key = buildMotifClusterKey(
+                    cols(index("species")),
+                    cols(index("gene")),
+                    cols(index("antigen.epitope")),
+                    cols(index("cdr3aa")),
+                    cols(index("v.segm")),
+                    cols(index("j.segm"))
+                  )
+                  val cid = cols(index("cid")).trim
+                  if (key.nonEmpty && cid.nonEmpty && allowedKeys.contains(key) && !builder.contains(key)) {
+                    builder.update(key, cid)
+                  }
+                }
+              }
+              builder.toMap
+            }
+          }
+        } finally {
+          source.close()
+        }
+      case _ =>
+        Map.empty
+    }
+  }
+
+  private def buildMotifClusterKey(species: String, gene: String, epitope: String, cdr3: String, vsegm: String, jsegm: String): String = {
+    val parts = Seq(species, gene, epitope, cdr3, vsegm, jsegm)
+      .map(v => Option(v).map(_.trim).getOrElse("").toLowerCase(Locale.ROOT))
+    if (parts.exists(_.isEmpty)) "" else parts.mkString("|")
+  }
+
+  private def buildStructureKeySet(): Set[String] = {
+    val required = Seq("species", "gene", "antigen.epitope", "cdr3", "v.segm", "j.segm")
+    if (!required.forall(structures.columnNames().contains)) {
+      Set.empty
+    } else {
+      val speciesCol = structures.stringColumn("species")
+      val geneCol = structures.stringColumn("gene")
+      val epitopeCol = structures.stringColumn("antigen.epitope")
+      val cdr3Col = structures.stringColumn("cdr3")
+      val vsegmCol = structures.stringColumn("v.segm")
+      val jsegmCol = structures.stringColumn("j.segm")
+      val builder = mutable.HashSet.empty[String]
+      var idx = 0
+      while (idx < structures.rowCount()) {
+        val key = buildMotifClusterKey(
+          speciesCol.get(idx),
+          geneCol.get(idx),
+          epitopeCol.get(idx),
+          cdr3Col.get(idx),
+          vsegmCol.get(idx),
+          jsegmCol.get(idx)
+        )
+        if (key.nonEmpty) {
+          builder += key
+        }
+        idx += 1
+      }
+      builder.toSet
+    }
+  }
+
+  private def lookupMotifClusterId(species: String, gene: String, epitope: String, cdr3: String, vsegm: String, jsegm: String): Option[String] = {
+    val key = buildMotifClusterKey(species, gene, epitope, cdr3, vsegm, jsegm)
+    if (key.isEmpty) None else motifClusterIdIndex.get(key)
+  }
+
+  private def buildChainLabel(vsegm: String, cdr3: String, jsegm: String): String = {
+    val parts = Seq(vsegm, cdr3, jsegm).map(_.trim).filter(_.nonEmpty)
+    if (parts.isEmpty) "" else parts.mkString("-")
   }
 
   // ---------- load vdjdb.txt ----------
@@ -165,8 +270,8 @@ case class Structures @Inject()(database: Database)(implicit ec: ExecutionContex
     if (t.columnNames().contains("meta")) t.stringColumn("meta")
     else StringColumn.create("meta") // empty fallback
 
-  private def getContactsCol(t: Table): Option[StringColumn] =
-    if (t.columnNames().contains("contacts")) Some(t.stringColumn("contacts"))
+  private def getTcrHashCol(t: Table): Option[StringColumn] =
+    if (t.columnNames().contains("TCR_hash")) Some(t.stringColumn("TCR_hash"))
     else None
 
   private val structureIdJsonKeys: Seq[String] = Seq(
@@ -175,7 +280,8 @@ case class Structures @Inject()(database: Database)(implicit ec: ExecutionContex
     "structure",
     "structure_id",
     "structureHash",
-    "structure.hash"
+    "structure.hash",
+    "TCR_hash"
   )
 
   private val structureIdTokenPattern = "^[A-Za-z0-9_-]{4,}$".r
@@ -222,31 +328,24 @@ case class Structures @Inject()(database: Database)(implicit ec: ExecutionContex
       case _ => None
     }
 
-  private def extractStructureIdFromContacts(raw: String): Option[String] = {
-    val trimmed = Option(raw).map(_.trim).filter(_.nonEmpty)
-    trimmed.flatMap { value =>
-      extractStructureIdFromJsValue(Try(Json.parse(value)).getOrElse(JsString(value)))
-    }
-  }
-
-  private def extractStructureId(metaStr: String, contactsStr: Option[String]): Option[String] = {
-    val fromContacts = contactsStr.flatMap(extractStructureIdFromContacts).map(_.trim).filter(_.nonEmpty)
+  private def extractStructureId(metaStr: String, hashStr: Option[String]): Option[String] = {
+    val fromHash = hashStr.flatMap(sanitizeStructureIdCandidate).map(_.trim).filter(_.nonEmpty)
     val fromMeta = Option(metaStr)
       .map(meta => pickFromJson(meta, structureIdJsonKeys))
       .map(_.trim)
       .filter(_.nonEmpty)
-    fromContacts.orElse(fromMeta)
+    fromHash.orElse(fromMeta)
   }
 
   private def buildStructureIdColumn(t: Table): StringColumn = {
     val metaCol = getMetaCol(t)
-    val contactsColOpt = getContactsCol(t)
+    val hashColOpt = getTcrHashCol(t)
     val values = new java.util.ArrayList[String](t.rowCount())
     var i = 0
     while (i < t.rowCount()) {
       val metaRaw = Try(metaCol.get(i)).getOrElse("")
-      val contactsRaw = contactsColOpt.flatMap(col => Option(col.get(i)))
-      val resolved = extractStructureId(metaRaw, contactsRaw).getOrElse("")
+      val hashRaw = hashColOpt.flatMap(col => Option(col.get(i)))
+      val resolved = extractStructureId(metaRaw, hashRaw).getOrElse("")
       values.add(resolved)
       i += 1
     }
@@ -287,7 +386,7 @@ case class Structures @Inject()(database: Database)(implicit ec: ExecutionContex
 
   private val withDerived: Table = {
     val t = raw.copy()
-    // derive "structure.id" (contacts preferred) and "cell.subset" from JSON
+    // derive "structure.id" (TCR hash preferred) and "cell.subset" from JSON
     val structureIdCol = buildStructureIdColumn(t)
     val cellSubsetCol  = deriveColFromMeta(t, "cell.subset",
       Seq("cell.subset", "cellSubset", "cell_subset", "cell.subset"))
@@ -325,7 +424,7 @@ case class Structures @Inject()(database: Database)(implicit ec: ExecutionContex
   }
 
   // ---------- metadata tree built from pruned table ----------
-  private val metadataLevels = Seq("species", "gene", "mhc.class", "mhc.a", "antigen.epitope")
+  private val metadataLevels = Seq("mhc.class", "mhc.a", "antigen.epitope")
   private val metadata: MotifsMetadata =
     MotifsMetadata.generateMetadataFromLevels(structures, metadataLevels)
 
@@ -472,6 +571,34 @@ case class Structures @Inject()(database: Database)(implicit ec: ExecutionContex
       val vsegm = firstValue(table, "v.segm").getOrElse("")
       val jsegm = firstValue(table, "j.segm").getOrElse("")
       val cellSubsetValue = firstValue(table, "cell.subset").getOrElse("")
+      val speciesValue = firstValue(table, "species").getOrElse("")
+      val epitopeValue = firstValue(table, "antigen.epitope").getOrElse("")
+
+      def buildChainInfo(gene: String): Option[ChainInfo] = {
+        val cdr3 = firstValueForGene(table, gene, "cdr3").getOrElse("")
+        val v = firstValueForGene(table, gene, "v.segm").getOrElse("")
+        val j = firstValueForGene(table, gene, "j.segm").getOrElse("")
+        if (cdr3.isEmpty && v.isEmpty && j.isEmpty) {
+          None
+        } else {
+          val motifId = lookupMotifClusterId(speciesValue, gene, epitopeValue, cdr3, v, j)
+          Some(ChainInfo(cdr3, v, j, motifId))
+        }
+      }
+
+      val alphaInfo = buildChainInfo("TRA")
+      val betaInfo = buildChainInfo("TRB")
+
+      val displayIds = Seq(alphaInfo.flatMap(_.motifClusterId), betaInfo.flatMap(_.motifClusterId)).flatten.distinct
+      val displayId = displayIds match {
+        case Seq() => ""
+        case Seq(single) => single
+        case many => many.mkString(" / ")
+      }
+
+      val alphaLabel = alphaInfo.map(info => buildChainLabel(info.vsegm, info.cdr3, info.jsegm)).getOrElse("")
+      val betaLabel = betaInfo.map(info => buildChainLabel(info.vsegm, info.cdr3, info.jsegm)).getOrElse("")
+      val tcrPairLabel = Seq(alphaLabel, betaLabel).filter(_.nonEmpty).mkString("; ")
 
       val trimmedId = structureId.trim
       val visualizationOpt = resolveVisualization(trimmedId)
@@ -479,9 +606,20 @@ case class Structures @Inject()(database: Database)(implicit ec: ExecutionContex
         return None
       }
 
+      val geneValues = if (table.columnNames().contains("gene")) {
+        table.stringColumn("gene").asSet().asScala.map(_.trim).filter(_.nonEmpty).toSeq
+      } else {
+        Seq.empty
+      }
+      val geneValue = {
+        val normalized = geneValues.map(_.toUpperCase(Locale.ROOT)).toSet
+        if (normalized.contains("TRA") && normalized.contains("TRB")) "TRA/TRB"
+        else geneValues.headOption.getOrElse("")
+      }
+
       val meta = StructureClusterMeta(
-        species = firstValue(table, "species").getOrElse(""),
-        gene = firstValue(table, "gene").getOrElse(""),
+        species = speciesValue,
+        gene = geneValue,
         mhcclass = firstValue(table, "mhc.class").getOrElse(""),
         mhca = firstValue(table, "mhc.a").getOrElse(""),
         mhcb = firstValue(table, "mhc.b").getOrElse(""),
@@ -490,7 +628,7 @@ case class Structures @Inject()(database: Database)(implicit ec: ExecutionContex
         cellSubset = cellSubsetValue
       )
 
-      Some(StructureCluster(trimmedId, size, length, vsegm, jsegm, Seq.empty, meta, visualizationOpt))
+      Some(StructureCluster(trimmedId, displayId, tcrPairLabel, size, length, vsegm, jsegm, Seq.empty, meta, visualizationOpt))
     }
   }
 
@@ -515,30 +653,29 @@ case class Structures @Inject()(database: Database)(implicit ec: ExecutionContex
   }
 
   private def locateStandardHtml(originalId: String, lowerId: String): Option[Path] = {
-    if (!Files.isDirectory(standardHtmlDir)) {
-      None
-    } else {
-      val direct = standardHtmlDir.resolve(s"$originalId.html").normalize()
-      if (Files.isRegularFile(direct) && direct.startsWith(structureFilesRoot)) {
-        Some(direct)
-      } else {
-        val lower = standardHtmlDir.resolve(s"$lowerId.html").normalize()
-        if (Files.isRegularFile(lower) && lower.startsWith(structureFilesRoot)) Some(lower) else None
-      }
-    }
+    val candidates = Seq(
+      s"$originalId.html",
+      if (lowerId != originalId) s"$lowerId.html" else ""
+    ).filter(_.nonEmpty)
+    locateInStructureDirectory(candidates)
   }
 
   private def locateSimpleHtml(originalId: String, lowerId: String): Option[Path] = {
-    if (!Files.isDirectory(simpleHtmlDir)) {
+    val candidates = Seq(
+      s"${originalId}_simplified.html",
+      if (lowerId != originalId) s"${lowerId}_simplified.html" else ""
+    ).filter(_.nonEmpty)
+    locateInStructureDirectory(candidates)
+  }
+
+  private def locateInStructureDirectory(candidateFileNames: Seq[String]): Option[Path] = {
+    if (!Files.isDirectory(standardHtmlDir)) {
       None
     } else {
-      val direct = simpleHtmlDir.resolve(s"$originalId.html").normalize()
-      if (Files.isRegularFile(direct) && direct.startsWith(structureFilesRoot)) {
-        Some(direct)
-      } else {
-        val lower = simpleHtmlDir.resolve(s"$lowerId.html").normalize()
-        if (Files.isRegularFile(lower) && lower.startsWith(structureFilesRoot)) Some(lower) else None
-      }
+      candidateFileNames.iterator.flatMap { name =>
+        val normalized = standardHtmlDir.resolve(name).normalize()
+        if (Files.isRegularFile(normalized) && normalized.startsWith(structureFilesRoot)) Some(normalized) else None
+      }.collectFirst { case path => path }
     }
   }
 

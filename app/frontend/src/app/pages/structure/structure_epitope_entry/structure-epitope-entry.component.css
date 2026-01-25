@@ -35,53 +35,191 @@
     opacity: 0.8 !important;
 }
 
+.epitope-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.9rem;
+    font-size: 0.82rem;
+    color: rgba(0, 0, 0, 0.65);
+}
+
+.epitope-meta__label {
+    font-weight: 600;
+    margin-right: 4px;
+    color: rgba(0, 0, 0, 0.75);
+}
+
 .overlay-controls {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
 }
 
-.overlay-toggle {
-    display: inline-flex !important;
-    align-items: center;
-    gap: 0.5rem;
+.overlay-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    font-size: 0.95rem;
+    color: #303030;
 }
 
-.overlay-selection {
+.overlay-header__title {
+    font-weight: 700;
+    letter-spacing: 0.2px;
+}
+
+.overlay-header__hint {
+    font-size: 0.85rem;
+    color: rgba(0, 0, 0, 0.55);
+}
+
+.overlay-header__counter {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 4px;
+    font-weight: 700;
+    color: #1f1f1f;
+    padding: 6px 10px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 8px;
+    background: linear-gradient(180deg, #ffffff 0%, #f4f6fb 100%);
+}
+
+.overlay-header__counter-value {
+    font-size: 1.25rem;
+    color: #304ffe;
+}
+
+.overlay-header__counter-separator {
+    color: rgba(0, 0, 0, 0.35);
+}
+
+.overlay-layout {
+    display: flex;
+    align-items: stretch;
+    gap: 1rem;
+}
+
+.overlay-list {
+    flex: 0 0 320px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-height: 0;
+    align-self: stretch;
+}
+
+.overlay-list__scroller {
+    overflow-y: auto;
+    flex-grow: 1;
+    padding-right: 4px;
+    min-height: 0;
+    height: 100%;
+}
+
+.overlay-card {
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 6px;
+    padding: 0.7rem 0.75rem;
+    background: #ffffff;
+    cursor: pointer;
+}
+
+.overlay-card + .overlay-card {
+    margin-top: 0.6rem;
+}
+
+.overlay-card.is-selected {
+    border-color: #3d58f3;
+    background: #eef2ff;
+}
+
+.overlay-card.is-disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.overlay-card__line {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.75rem;
-}
-
-.overlay-selection__item {
-    display: flex;
     align-items: center;
-    gap: 0.4rem;
-    font-size: 0.9rem;
+    gap: 4px 6px;
+    font-size: 0.85rem;
+    color: #1f1f1f;
 }
 
-.overlay-selection__item input[type="checkbox"] {
-    margin-right: 0.35rem;
+.overlay-card__line--cdr .overlay-card__value {
+    font-family: "Menlo", "Consolas", "Courier New", monospace;
+    color: #2e3c62;
 }
 
-.overlay-selection__label-note {
-    color: rgba(0, 0, 0, 0.5);
-    font-style: italic;
-    margin-left: 0.25rem;
+.overlay-card__label {
+    font-weight: 600;
+    color: rgba(0, 0, 0, 0.65);
+}
+
+.overlay-card__note {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: #ffe6e6;
+    color: #a33;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.overlay-card__links {
+    margin-top: 0.4rem;
+    font-size: 0.82rem;
+}
+
+.overlay-card__links a {
+    color: #1a4fb5;
+    font-weight: 600;
+}
+
+.overlay-card__links a.is-unavailable {
+    color: rgba(0, 0, 0, 0.4);
+    pointer-events: none;
+}
+
+.overlay-card__links a.is-available {
+    color: #1f7a3c;
+}
+
+.overlay-card__link--disabled {
+    color: rgba(0, 0, 0, 0.4);
 }
 
 .overlay-selection__hint {
-    font-size: 0.8rem;
-    color: rgba(0, 0, 0, 0.45);
+    font-size: 0.82rem;
+    color: rgba(0, 0, 0, 0.52);
+}
+
+.overlay-visualization {
+    flex: 1;
+    min-width: 0;
 }
 
 .structure-overlay {
     position: relative;
     width: 100%;
-    background-color: transparent;
-    border: 1px dashed rgba(0, 0, 0, 0.2);
-    border-radius: 4px;
+    background-color: #f9fbff;
+    border: 1px solid #dfe3ed;
+    border-radius: 6px;
     padding: 0;
+}
+
+.structure-overlay__layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    overflow: hidden;
 }
 
 .structure-overlay__base {
@@ -94,16 +232,6 @@
     display: flex;
     justify-content: center;
     align-items: center;
-}
-
-.structure-overlay__layer {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    pointer-events: none;
-    overflow: hidden;
 }
 
 .structure-overlay__layer .structure-html {
